@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YourStreetCanvas</title>
+    <style>
+        .gmnoprint:not(.gm-bundled-control) {
+            display: none;
+        }
+
+        .gm-bundled-control .gmnoprint {
+            display: block;
+        }
+
+        a[href^="http://maps.google.com/maps"],
+        a[href^="https://maps.google.com/maps"],
+        a[href^="https://www.google.com/maps"] {
+            display: none !important;
+        }
+
+        #dvMap {
+            width: 1000px;
+            height: 1000px;
+            border: 10px solid black;
+        }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOURAPIKEY&callback=initMap" async defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script src="js/html2canvas.js"></script>
+    <script src="js/jquery.plugin.html2canvas.js"></script>
+    <script>
+        let map, geocoder;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("dvMap"), {
+                center: { lat: 48.8566, lng: 2.34 },
+                zoom: 13,
+                mapTypeId: "roadmap",
+                disableDefaultUI: true,
+                styles: [
+                    {
+                        featureType: "all",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                    },
+                    {
+                        featureType: "all",
+                        elementType: "geometry",
+                        stylers: [{ color: "#ffffff" }]
+                    },
+                    {
+                        featureType: "road",
+                        elementType: "geometry",
+                        stylers: [{ visibility: "on" }, { color: "#000000" }, { weight: 0 }]
+                    }
+                ]
+            });
+
+            geocoder = new google.maps.Geocoder();
+            document.getElementById("submit_location").addEventListener("click", () => {
+                geocodeAddress(geocoder, map);
+            });
+        }
+
+        function geocodeAddress(geocoder, resultsMap) {
+            const address = document.getElementById("address").value;
+            geocoder.geocode({ address: address }, (results, status) => {
+                if (status === "OK") {
+                    resultsMap.setCenter(results[0].geometry.location);
+                } else {
+                    alert("Geocode was not successful for the following reason: " + status);
+                }
+            });
+        }
+
+        function exportMap() {
+            const transform = $(".gm-style>div:first>div").css("transform");
+            const [_, __, ___, ____, left, top] = transform.split(",");
+
+            $(".gm-style>div:first>div").css({
+                transform: "none",
+                left: parseFloat(left),
+                top: parseFloat(top)
+            });
+
+            html2canvas(document.getElementById("dvMap"), {
+                useCORS: true
+            }).then((canvas) => {
+                const img = canvas.toDataURL();
+                $.post("save.php", { data: img });
+                $(".gm-style>div:first>div").css({
+                    transform: transform,
+                    left: 0,
+                    top: 0
+                });
+            });
+        }
+
+        function updateMapSize() {
+            const width = document.getElementById("divWidth").value;
+            const height = document.getElementById("divHeight").value;
+            document.getElementById("dvMap").style.width = `${width}px`;
+            document.getElementById("dvMap").style.height = `${height}px`;
+            document.getElementById("price").value = 20 + width * height * 0.0001;
+        }
+    </script>
+</head>
+<body>
+    <div id="locationField">
+        <label for="address">Location</label>
+        <input id="address" type="text" value="Paris, France">
+        <button id="submit_location">Go</button>
+    </div>
+	<p>
+    <div id="size">
+        <label for="divWidth">Width</label>
+        <input id="divWidth" type="number" value="1000" oninput="updateMapSize()">
+
+        <label for="divHeight">Height</label>
+        <input id="divHeight" type="number" value="1000" oninput="updateMapSize()">
+    </div>
+	<p>
+    <div id="cutzone">
+        <div id="dvMap"></div>
+    </div>
+	<p>
+    <div id="imgMap"></div>
+	<p>
+    <button id="btnExport" onclick="exportMap()">Export</button>
+</body>
+</html>
